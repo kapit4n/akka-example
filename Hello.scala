@@ -3,6 +3,8 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.actor._
 import akka.actor.Actor._
+import akka.transactor._
+import scala.concurrent.stm._
 
 class HelloActor(myName: String) extends Actor {
   def receive = {
@@ -34,9 +36,7 @@ class PongActor extends Actor {
 }
 
 class PingActor extends Actor {
-
   context.actorSelection("../Pong*") ! Ping // starts things off
-
   def receive = {
     case Pong ⇒ {
       Thread.sleep(2000)
@@ -59,3 +59,22 @@ object PingPongPong extends App {
   system.actorOf(Props[PongActor], name = "Pong2")
   system.actorOf(Props[PingActor], name = "Ping")
 }
+
+import akka.actor._
+import akka.transactor._
+import scala.concurrent.stm._
+
+case object Increment
+
+class FriendlyCounter(friend: ActorRef) extends Transactor {
+  val count = Ref(0)
+
+  override def coordinate = {
+    case Increment ⇒ include(friend)
+  }
+
+  def atomically = implicit txn ⇒ {
+    case Increment ⇒ count transform (_ + 1)
+  }
+}
+
